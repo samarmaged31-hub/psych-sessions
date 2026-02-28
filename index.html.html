@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>Psychological Support Sessions Schedule</title>
+<style>
+body { font-family: Arial; margin:20px; direction:rtl; }
+table { width:100%; border-collapse:collapse; table-layout:fixed; }
+th,td { border:1px solid #ccc; padding:5px; text-align:center; vertical-align:top; }
+th { background:#f0f0f0; }
+.hour { width:60px; }
+
+.session {
+  padding:3px;
+  margin:2px;
+  border-radius:4px;
+  color:#fff;
+  font-size:12px;
+  cursor:pointer;
+}
+
+.Assessment { background:#8e44ad; }
+.FollowSamar { background:#e74c3c; }
+.FollowAli { background:#3498db; }
+.FollowMaha { background:#2ecc71; }
+.Meeting { background:#95a5a6; color:#000; font-weight:bold; }
+
+.stats { margin:10px 0; font-weight:bold; }
+button { margin:2px; }
+</style>
+</head>
+
+<body>
+
+<h2>Psychological Support Sessions Schedule</h2>
+
+<div class="stats">
+Assessments Completed: <span id="assessDone">0</span> |
+Follow-ups Completed: <span id="followDone">0</span> |
+Missed: <span id="missed">0</span>
+</div>
+
+<button onclick="prevWeek()">الأسبوع السابق</button>
+<button onclick="nextWeek()">الأسبوع القادم</button>
+<button onclick="addSession()">➕ إضافة جلسة</button>
+<button onclick="addMeeting()">📌 Meeting</button>
+
+<div id="calendar"></div>
+
+<script>
+const days = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس"];
+let start = new Date();
+start.setDate(start.getDate() - start.getDay());
+
+let cases = {};
+let sessions = [];
+
+function renderStats(){
+  let assessDone = sessions.filter(s=>s.type==='Assessment' && s.status==='✔').length;
+  let followDone = sessions.filter(s=>s.type==='FollowUp' && s.status==='✔').length;
+  let missed = sessions.filter(s=>s.status==='❌').length;
+  document.getElementById("assessDone").innerText = assessDone;
+  document.getElementById("followDone").innerText = followDone;
+  document.getElementById("missed").innerText = missed;
+}
+
+function render(){
+  renderStats();
+  let cal = "<table><tr><th></th>";
+  for(let i=0;i<5;i++){
+    let d = new Date(start); d.setDate(d.getDate()+i);
+    let dayName = days[i];
+    let options = {day:'numeric',month:'long',year:'numeric'};
+    let dateStr = d.toLocaleDateString('ar-EG',options);
+    cal += `<th>${dayName}<br>${dateStr}</th>`;
+  }
+  cal+="</tr>";
+
+  for(let h=8;h<=18;h++){
+    cal+=`<tr><td class="hour">${h}:00</td>`;
+    for(let d=0;d<5;d++){
+      let date = new Date(start); date.setDate(date.getDate()+d);
+      cal+="<td>";
+      sessions.filter(s =>
+        s.hour===h &&
+        new Date(s.date).toDateString()===date.toDateString()
+      ).forEach(s=>{
+        let cls = s.type==="Assessment" ? "Assessment" :
+          s.psych==="Samar"?"FollowSamar":
+          s.psych==="Ali"?"FollowAli":"FollowMaha";
+
+        if(s.type==="Meeting") cls="Meeting";
+
+        cal+=`<div class="session ${cls}" onclick="editSession(${s.id})">
+        ${s.code? s.code+" – "+s.name+" "+s.status :"Meeting"}
+        </div>`;
+      });
+      cal+="</td>";
+    }
+    cal+="</tr>";
+  }
+  cal+="</table>";
+  document.getElementById("calendar").innerHTML = cal;
+}
+
+function addSession(){
+  let code = prompt("Case Code:");
+  if(!cases[code]){
+    cases[code]=prompt("Case Name:");
+  }
+  let psych = prompt("Psychologist: Samar / Ali / Maha","Samar");
+  let type = prompt("Type: Assessment / FollowUp", "Assessment");
+  let date = prompt("Date yyyy-mm-dd");
+  let hour = +prompt("Hour 8-18");
+  sessions.push({
+    id:Date.now(),
+    code,
+    name:cases[code],
+    psych,
+    type,
+    date:new Date(date),
+    hour,
+    status:"❌"
+  });
+  render();
+}
+
+function addMeeting(){
+  let date = prompt("Date yyyy-mm-dd");
+  let hour = +prompt("Hour");
+  sessions.push({
+    id:Date.now(),
+    type:"Meeting",
+    date:new Date(date),
+    hour
+  });
+  render();
+}
+
+function editSession(id){
+  let s = sessions.find(x=>x.id===id);
+  let action = prompt("choose: completed / missed / edit / delete / next","completed");
+
+  if(action==="delete"){
+    sessions = sessions.filter(x=>x.id!==id);
+  }
+  else if(action==="completed"){
+    s.status="✔";
+  }
+  else if(action==="missed"){
+    s.status="❌";
+  }
+  else if(action==="edit"){
+    s.code = prompt("Case Code:", s.code);
+    if(!cases[s.code]) cases[s.code]=prompt("Case Name:");
+    s.name = cases[s.code];
+    s.psych = prompt("Psychologist: Samar / Ali / Maha", s.psych);
+    s.type = prompt("Type: Assessment / FollowUp", s.type);
+    s.date = new Date(prompt("Date yyyy-mm-dd:", s.date.toISOString().split('T')[0]));
+    s.hour = +prompt("Hour 8-18", s.hour);
+  }
+  else if(action==="next"){
+    let d = prompt("Next session date yyyy-mm-dd");
+    let h = +prompt("Hour");
+    sessions.push({
+      id:Date.now(),
+      code:s.code,
+      name:s.name,
+      psych:s.psych,
+      type:"FollowUp",
+      date:new Date(d),
+      hour:h,
+      status:"❌"
+    });
+  }
+  render();
+}
+
+function prevWeek(){ start.setDate(start.getDate()-7); render(); }
+function nextWeek(){ start.setDate(start.getDate()+7); render(); }
+
+render();
+</script>
+
+</body>
+</html>
